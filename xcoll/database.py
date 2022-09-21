@@ -6,8 +6,25 @@ from .beam_elements.k2.materials import SixTrack_to_xcoll
 def load_SixTrack_colldb(filename, *, emit):
     return CollDB(emit=emit, sixtrack_file=filename)
 
-class CollDB:
-    def __init__(self, *, emit, sixtrack_file=None):
+class CollimatorData:
+    
+    
+    # line; to keep installed collimator in sync
+    @property
+    def line(self):
+        return self._line
+
+    # CollimatorDatabase's dataframe; to keep in sync
+    @property
+    def dataframe(self):
+        return self._df
+
+
+
+
+
+class CollimatorDatabase:
+    def __init__(self, *, emit):
         self._optics = pd.DataFrame(columns=['betx', 'bety', 'x', 'px', 'y', 'py'])
         self._optics_positions_to_calculate = {}
         if sixtrack_file is not None:
@@ -38,7 +55,36 @@ class CollDB:
                 'active_length':   self.active_length,
                 'collimator_type': self.collimator_type,
             }, index=self.name)
-    
+
+    def __len__(self):
+        return len(self.element_names)
+
+    @property
+    def elements(self):
+        return tuple([self.element_dict[nn] for nn in self.element_names])
+
+    def __getitem__(self, ii):
+        if isinstance(ii, str):
+            return self.element_dict.__getitem__(ii)
+        else:
+            names = self.element_names.__getitem__(ii)
+            if isinstance(names, str):
+                return self.element_dict.__getitem__(names)
+            else:
+                return [self.element_dict[nn] for nn in names]
+
+    # https://thispointer.com/python-how-to-make-a-class-iterable-create-iterator-class-for-it/
+    def __iter__(self):
+        return self
+ 
+    def __next__(self):
+        if self.num > self.end:
+            raise StopIteration
+        else:
+            self.num += 1
+            return self.num - 1
+
+
     @property
     def name(self):
         return self._colldb.index.values

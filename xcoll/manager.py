@@ -12,11 +12,11 @@ _all_collimator_types = { BlackAbsorber, K2Collimator }
 
 
 class CollimatorManager:
-    def __init__(self, *, line, colldb: CollDB, _context=None, _buffer=None, storage_capacity=1e6, record_impacts=False):
-        if not isinstance(colldb, CollDB):
-            raise ValueError("The variable 'colldb' needs to be an xcoll CollDB object!")
-        else:
-            self.colldb = colldb
+    def __init__(self, *, line, _context=None, _buffer=None, storage_capacity=1e6, record_impacts=False):
+#         if not isinstance(colldb, CollDB):
+#             raise ValueError("The variable 'colldb' needs to be an xcoll CollDB object!")
+#         else:
+#             self.colldb = colldb
         if not isinstance(line, xt.Line):
             raise ValueError("The variable 'line' needs to be an xtrack Line object!")
         else:
@@ -72,34 +72,6 @@ class CollimatorManager:
         for name in self.collimator_names:
             if self.colldb._colldb.loc[name,'collimator_type'] is not None:
                 self.line[name].impacts = self._impacts
-
-    @property
-    def collimator_names(self):
-        return list(self.colldb.name)
-
-    @property
-    def s_start(self):
-        return self.colldb.s_center - self.colldb.active_length/2 - self.colldb.inactive_front
-
-    @property
-    def s_start_active(self):
-        return self.colldb.s_center - self.colldb.active_length/2
-
-    @property
-    def s_center(self):
-        return self.colldb.s_center
-
-    @property
-    def s_end_active(self):
-        return self.colldb.s_center + self.colldb.active_length/2
-
-    @property
-    def s_end(self):
-        return self.colldb.s_center + self.colldb.active_length/2 + self.colldb.inactive_back
-
-    @property
-    def s_match(self):
-        return self.colldb.s_match
 
     def install_black_absorbers(self, names=None, *, verbose=False):
         def install_func(thiscoll, name):
