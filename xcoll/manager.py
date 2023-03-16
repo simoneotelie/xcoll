@@ -28,6 +28,7 @@ class CollimatorManager:
             self.line = line
         self.line._needs_rng = True
         self._line_is_reversed = line_is_reversed
+        self._s_shift = 0
 
         # Create _buffer, _context, and _io_buffer
         if _buffer is None:
@@ -58,6 +59,19 @@ class CollimatorManager:
         self._summary = None
         self._part    = None
 
+
+    def cycle(self, *args, **kwargs):
+        argnames_cycle = ['index_first_element', 'name_first_element', '_make_tracker']
+        arg = dict(zip(argnames_cycle, args))
+        arg.update(kwargs)
+        if 'index_first_element' in kwargs.keys() and kwargs['index_first_element'] is not None:
+            kwargs['name_first_element'] = self.line.element_names[index_first_element]
+        elif 'name_first_element' not in kwargs.keys() or kwargs['name_first_element'] is None:
+            raise ValueError("Need to use one of 'index_first_element' or 'name_first_element'!")
+        self._s_shift = self.line.get_s_position(kwargs['name_first_element'])
+        self.line = self.line.cycle(*args, **kwargs)
+        self.line._needs_rng = True
+        return self.line
 
     @property
     def impacts(self):
@@ -309,7 +323,8 @@ class CollimatorManager:
             # TODO: does this fail on Everest? Can the twiss be calculated at the center of the collimator for everest?
 #             pos = { *self.s_active_front, *self.s_center, *self.s_active_back }
             pos = list({ *self.s_active_front, *self.s_active_back })
-            tw = line.twiss(at_s=pos)
+            length = line.get_length()
+            tw = line.twiss(at_s=[np.mod(s+self._s_shift, length) for s in pos])
 #             tw = tracker.twiss()
             self.colldb._optics = pd.concat([
                                     self.colldb._optics,
@@ -522,15 +537,19 @@ class CollimatorManager:
            ):
             self._part   = part.to_dict()
             coll_mask    = (part.state<=-333) & (part.state>=-340)
-            coll_losses  = np.array([self.line.element_names[i] for i in part.at_element[coll_mask]])
+            line         = self.line
+            names        = self.collimator_names
+            coll_losses  = np.array([line.element_names[i]
+                                     for i in part.at_element[coll_mask]])
             coll_loss_single = np.unique(coll_losses)
-            coll_lengths = [self.line[nn].active_length for nn in self.collimator_names] 
-            coll_pos     = [self.colldb.s_center[nn]    for nn in self.collimator_names]
+            coll_lengths = [line[nn].active_length for nn in names] 
+            coll_pos     = [line.get_s_position(nn) + self._s_shift + line[nn].inactive_front
+                                + line[nn].active_length/2 for nn in names]
             if self._line_is_reversed:
-                machine_length = self.line.get_length()
+                machine_length = line.get_length()
                 coll_pos = [machine_length - s for s in coll_pos ]
-            coll_types   = [self.line[nn].__class__.__name__  for nn in self.collimator_names]
-            nabs         = [np.count_nonzero(coll_losses==nn) for nn in self.collimator_names]
+            coll_types   = [self.line[nn].__class__.__name__  for nn in names]
+            nabs         = [np.count_nonzero(coll_losses==nn) for nn in names]
 
             self._summary = pd.DataFrame({
                         "collname": self.collimator_names,
@@ -571,8 +590,9 @@ class CollimatorManager:
                         )
                 loss_loc_refinement.refine_loss_location(part)
 
-            aper_s, aper_names = self._get_aperture_losses(part)
             coll_summary       = self.summary(part, show_zeros=False).to_dict('list')
+            aper_s, aper_names = self._get_aperture_losses(part)
+#             aper_nabs          = [np.count_nonzero(coll_losses==nn) for nn in names]
 
             self._lossmap = {
                 'collimator': {
@@ -603,7 +623,7 @@ class CollimatorManager:
 
     def _get_aperture_losses(self, part):
         aper_mask = part.state==0
-        aper_s = list(part.s[aper_mask])
+        aper_s = [s + self._s_shift for f in part.s[aper_mask]]
         aper_names = [self.line.element_names[i] for i in part.at_element[aper_mask]]
         if self._line_is_reversed:
             machine_length = self.line.get_length()
