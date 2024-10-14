@@ -6,7 +6,7 @@
 #ifndef XCOLL_GEOM_FIND_ROOT_H
 #define XCOLL_GEOM_FIND_ROOT_H
 
-#define XC_NEWTON_EPSILON = 1.e-10;
+#define XC_NEWTON_EPSILON 1.e-10
 #define XC_NEWTON_MAX_ITER 100  // Maximum number of iterations
 #define XC_NEWTON_DERIVATIVE_TOL 1e-10  // Threshold for small derivative
 
