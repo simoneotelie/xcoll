@@ -20,7 +20,7 @@ class XcollScatteringAPI:
         return self._line
 
     def enable(self):
-        elements = self.line.get_elements_of_type(element_classes)[0]
+        elements = self.line.get_elements_of_type(_all_collimator_classes)[0]
         if len(elements) == 0:
             print("No xcoll elements found in line.")
         else:
@@ -40,7 +40,7 @@ class XcollScatteringAPI:
                     el.enable_scattering()
 
     def disable(self):
-        elements = self.line.get_elements_of_type(element_classes)[0]
+        elements = self.line.get_elements_of_type(_all_collimator_classes)[0]
         if len(elements) == 0:
             print("No xcoll elements found in line.")
         else:
@@ -78,7 +78,7 @@ class XcollCollimatorAPI:
 
         # Verify elements
         for el in elements:
-            assert isinstance(el, element_classes)
+            assert isinstance(el, _all_collimator_classes)
             el._tracking = False
 
         # Get positions
@@ -230,6 +230,7 @@ class XcollCollimatorAPI:
         return tw_entry, tw_exit
 
     def assign_optics(self, *, nemitt_x=None, nemitt_y=None, twiss=None, tw=None):
+        print("I am inside assign optics")
         if tw is not None:
             warn("The argument tw is deprecated. Please use twiss instead.", FutureWarning)
             if twiss is None:
@@ -237,7 +238,10 @@ class XcollCollimatorAPI:
         if not self.line._has_valid_tracker():
             raise Exception("Please build tracker before setting the openings!")
         names = self.line.get_elements_of_type(_all_collimator_classes)[1]
+        print("I got names: ", names)
         tw_upstream, tw_downstream = self.get_optics_at(names, twiss=twiss)
+        print("did i get the upstream")
+        print(tw_upstream['name'])
         beta_gamma_rel = self.line.particle_ref._xobject.gamma0[0]*self.line.particle_ref._xobject.beta0[0]
         for coll in names:
             self.line[coll].assign_optics(name=coll, nemitt_x=nemitt_x, nemitt_y=nemitt_x, twiss_upstream=tw_upstream,
