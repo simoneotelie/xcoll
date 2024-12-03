@@ -4,17 +4,18 @@
 # ######################################### #
 
 import numpy as np
+from warnings import warn
 
 import xtrack as xt
 import xobjects as xo
 import xpart as xp
 
-from .beam_elements import _all_collimator_classes, EverestCrystal
+from .beam_elements import collimator_classes, EverestCrystal
 
 
 def generate_pencil_on_collimator(line, name, num_particles, *, side='+-', pencil_spread=1e-6,
                                   impact_parameter=0, sigma_z=7.61e-2, twiss=None, longitudinal=None,
-                                  longitudinal_betatron_cut=None, tw=None):
+                                  longitudinal_betatron_cut=None, tw=None, **kwargs):
     """
     Generate a pencil beam on a collimator.
     """
@@ -24,7 +25,7 @@ def generate_pencil_on_collimator(line, name, num_particles, *, side='+-', penci
 
     coll = line[name]
 
-    if not isinstance(coll, tuple(_all_collimator_classes)):
+    if not isinstance(coll, tuple(collimator_classes)):
         raise ValueError("Need to provide a valid collimator!")
 
     if coll.optics is None:
@@ -49,15 +50,21 @@ def generate_pencil_on_collimator(line, name, num_particles, *, side='+-', penci
         raise NotImplementedError("Pencil beam on a skew collimator not yet supported!")
 
     if tw is not None:
-        print("The argument tw is deprecated. Please use twiss instead.")
+        warn("The argument tw is deprecated. Please use twiss instead.", FutureWarning)
         if twiss is None:
             twiss = tw
 
     if twiss is None:
         twiss = line.twiss()
 
-    # Is it converging or diverging?    # TODO: This might change with a tilt!!!!!!
-    is_converging  = twiss[f'alf{plane}', name] > 0
+    # Is it converging or diverging?
+    # TODO: dispersion might change this
+    # TODO: this should be checked jaw by jaw (we are currently checking the left jaw - watch out for sign of tilt of right jaw)
+    # TODO: skew collimators
+    tilt = coll.tilt[0] if isinstance(coll.tilt, list) else coll.tilt
+    betatron_angle = coll.gap * coll.divergence
+    tolerance_tilt = 1e-12 # 0.1 urad tolerance on jaw tilt  =>  we prioritise converging
+    is_converging = tilt + tolerance_tilt >= betatron_angle
     print(f"Collimator {name} is {'con' if is_converging else 'di'}verging.")
 
     beam_sizes = twiss.get_beam_covariance(nemitt_x=coll.nemitt_x, nemitt_y=coll.nemitt_y)
@@ -129,15 +136,13 @@ def generate_pencil_on_collimator(line, name, num_particles, *, side='+-', penci
         part = xp.build_particles(
                 x=pencil, px=p_pencil, y_norm=transverse_norm, py_norm=p_transverse_norm,
                 zeta=zeta, delta=delta, nemitt_x=coll.nemitt_x, nemitt_y=coll.nemitt_y,
-                line=line, at_element=at_element, #match_at_s=match_at_s,
-                _context=coll._buffer.context
+                line=line, at_element=at_element, _context=coll._buffer.context, **kwargs
         )
     else:
         part = xp.build_particles(
                 x_norm=transverse_norm, px_norm=p_transverse_norm, y=pencil, py=p_pencil, 
                 zeta=zeta, delta=delta, nemitt_x=coll.nemitt_x, nemitt_y=coll.nemitt_y,
-                line=line, at_element=at_element, #match_at_s=match_at_s,
-                _context=coll._buffer.context
+                line=line, at_element=at_element, _context=coll._buffer.context, **kwargs
         )
 
     part._init_random_number_generator()

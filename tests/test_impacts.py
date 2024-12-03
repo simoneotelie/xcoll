@@ -28,22 +28,22 @@ path = Path(__file__).parent / 'data'
                             [2, 'H']], ids=["B1H", "B2V", "B1V", "B2H"])
 def test_impacts_from_line(beam, plane, test_context):
     line = xt.Line.from_json(path / f'sequence_lhc_run3_b{beam}.json')
-    coll_manager = xc.CollimatorDatabase.from_yaml(path / 'colldb_lhc_run3.yaml', beam=beam)
-    coll_manager.install_everest_collimators(verbose=True, line=line)
+    colldb = xc.CollimatorDatabase.from_yaml(path / 'colldb_lhc_run3.yaml', beam=beam)
+    colldb.install_everest_collimators(verbose=True, line=line)
     df_with_coll = line.check_aperture()
     assert not np.any(df_with_coll.has_aperture_problem)
 
     impacts = xc.InteractionRecord.start(line=line, record_impacts=True, record_exits=True)
     line.build_tracker(_context=test_context)
 
-    xc.assign_optics_to_collimators(line=line)
+    line.collimators.assign_optics()
     tcp  = f"tcp.{'c' if plane=='H' else 'd'}6{'l' if beam==1 else 'r'}7.b{beam}"
     tw = line.twiss()
-    part = xc.generate_pencil_on_collimator(line, tcp, num_particles=num_part, twiss=tw)
+    part = line[tcp].generate_pencil(num_part, twiss=tw)
 
-    xc.enable_scattering(line)
+    line.scattering.enable()
     line.track(part, num_turns=num_turns, time=True, with_progress=1)
-    xc.disable_scattering(line)
+    line.scattering.disable()
 
     df = impacts.to_pandas()
     types = np.unique(df.interaction_type)
