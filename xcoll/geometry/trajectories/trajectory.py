@@ -103,6 +103,9 @@ for traj in all_trajectories:
 def plot(self, l1=0, l2=1):
     """Plot the trajectory and its bounding box"""
     fig, ax  = plt.subplots()
+    if self.__class__.__name__ == "CircularTrajectory":
+        l1 = -np.pi + l1*(2*np.pi)
+        l2 = -np.pi + l2*(2*np.pi)
 
     l_values = np.linspace(l1, l2, 100)
     s_values = np.array([self.func_s(l=l) for l in l_values])

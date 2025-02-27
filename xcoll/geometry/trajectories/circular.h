@@ -85,12 +85,26 @@ void CircularTrajectory_bounding_box_s(CircularTrajectory traj, double l1, doubl
     double s2 = CircularTrajectory_func_s(traj, l2);
     double sR = CircularTrajectory_get_sR(traj);
     double R  = CircularTrajectory_get_R(traj);
-    extrema[0] = MIN(s1, s2);
-    if (l1 <= 0. && 0. <= l2){
+    printf("l1 = %f, l2 = %f\n", l1, l2);
+    double theta = atan(CircularTrajectory_get_tan_tI(traj));
+    if (s1 < sR){
+        theta = M_PI + theta;
+    }
+    double l2_rescaled = theta + fabs(l1 - l2);
+    printf("theta = %f, l2_rescaled = %f\n", theta, l2_rescaled);
+
+    if ((theta <= M_PI && M_PI <= l2_rescaled) || (theta <= 3*M_PI && 3*M_PI <= l2_rescaled)){
+        extrema[0] = sR - R;
+    } else {
+        extrema[0] = MIN(s1, s2);
+    }
+    if ((theta <= 0. && 0. <= l2_rescaled) || (theta <= 2*M_PI && 2*M_PI <= l2_rescaled)){
         extrema[1] = sR + R;
     } else {
         extrema[1] = MAX(s1, s2);
-    }
+    } 
+
+    printf("S extrema[0] = %f, extrema[1] = %f\n", extrema[0], extrema[1]);
 }
 
 /*gpufun*/
@@ -99,16 +113,37 @@ void CircularTrajectory_bounding_box_x(CircularTrajectory traj, double l1, doubl
     double x2 = CircularTrajectory_func_x(traj, l2);
     double R  = CircularTrajectory_get_R(traj);
     double xR = CircularTrajectory_get_xR(traj);
-    if (l1 <= -M_PI/2. && -M_PI/2. <= l2){
-        extrema[0] = xR - R;
-    } else {
-        extrema[0] = MIN(x1, x2);
+    double s1 = CircularTrajectory_func_s(traj, l1);
+    double s2 = CircularTrajectory_func_s(traj, l2);
+
+    // double ll1 = -M_PI + l1 * (2 * M_PI);
+    // double ll2 = -M_PI + l2 * (2 * M_PI);
+    double theta =(atan(CircularTrajectory_get_tan_tI(traj)));
+    if (x1 < xR){
+        theta = M_PI + theta;
     }
-    if (l1 <= M_PI/2. && M_PI/2. <= l2){
-        extrema[1] = xR + R;
-    } else {
-        extrema[1] = MAX(x1, x2);
+    double l2_rescaled = (theta) + fabs(l1 - l2);
+    extrema[0] = MIN(x1, x2);
+    extrema[1] = MAX(x1, x2);
+    // Check critical points
+    if ( (theta <= -M_PI/2. && -M_PI/2. <= (fabs(l2_rescaled))) || (theta <= 3*M_PI/2. && 3*M_PI/2. <= ((l2_rescaled)))) {
+        extrema[0] = MIN(extrema[0], xR - R);
     }
+    if ( (theta <= M_PI/2. && M_PI/2. <= (fabs(l2_rescaled))) || (theta <= 5*M_PI/2. && 5*M_PI/2. <= ((l2_rescaled)))) {
+        extrema[1] = MAX(extrema[1], xR + R);
+    }
+
+    printf("extrema[0] = %f, extrema[1] = %f\n", extrema[0], extrema[1]);
+    // if (ll1 <= -M_PI/2. && -M_PI/2. <= ll2){
+    //     extrema[0] = xR - R;
+    // } else {
+    //     extrema[0] = MIN(x1, x2);
+    // }
+    // if (l1 <= M_PI/2. && M_PI/2. <= l2){
+    //     extrema[1] = xR + R;
+    // } else {
+    //     extrema[1] = MAX(x1, x2);
+    // }
 }
 
 #endif /* XCOLL_GEOM_TRAJ_CIRCULAR_H */
