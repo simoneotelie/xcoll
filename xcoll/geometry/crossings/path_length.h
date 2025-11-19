@@ -13,29 +13,39 @@
 void simpson(FindRoot finder, LocalTrajectory traj, int32_t subintervals) {
     double l1 = 0;
     double l2 = FindRoot_get_solution_l(finder, 0);
-    if (subintervals % 2 != 1) {
+    printf("subintervals %d\n", subintervals % 2);
+    if (subintervals % 2 == 1) {
         subintervals++;
     }
     double step_size = (l2 - l1) / subintervals;
-    double sum = sqrt(1 + LocalTrajectory_deriv_x(traj, l1)*LocalTrajectory_deriv_x(traj, l1)) + 
-                 sqrt(1 + LocalTrajectory_deriv_x(traj, l2)*LocalTrajectory_deriv_x(traj, l2));  // f(l1) + f(l2)
+    double sum = sqrt(LocalTrajectory_deriv_x(traj, l1)*LocalTrajectory_deriv_x(traj, l1) + 
+                      LocalTrajectory_deriv_s(traj, l1)*LocalTrajectory_deriv_s(traj, l1)) + 
+                 sqrt(LocalTrajectory_deriv_x(traj, l2)*LocalTrajectory_deriv_x(traj, l2) + 
+                      + LocalTrajectory_deriv_s(traj, l2)*LocalTrajectory_deriv_s(traj, l2));  // f(l1) + f(l2)
     // Add subintervals to the sum
     for (int i = 1; i < subintervals; i++) {
         double l = l1 + i * step_size;
         // Even indices (except the endpoints) are multiplied by 2. Odd indices are multiplied by 4
         if (i % 2 == 0) {
-            sum += 2.0 * sqrt(1 + LocalTrajectory_deriv_x(traj, l)*LocalTrajectory_deriv_x(traj, l));
+            sum += 2.0 * sqrt(LocalTrajectory_deriv_x(traj, l)*LocalTrajectory_deriv_x(traj, l) + 
+                              LocalTrajectory_deriv_s(traj, l)*LocalTrajectory_deriv_s(traj, l));
         } else {
-            sum += 4.0 * sqrt(1 + LocalTrajectory_deriv_x(traj, l)*LocalTrajectory_deriv_x(traj, l));
+            sum += 4.0 * sqrt(LocalTrajectory_deriv_x(traj, l)*LocalTrajectory_deriv_x(traj, l) + 
+                              LocalTrajectory_deriv_s(traj, l)*LocalTrajectory_deriv_s(traj, l));
         }
+        printf("Simpson step %d/%d: l = %f, partial sum = %f\n", i, subintervals, l, sum);
+        fflush(stdout);
     }
+    printf("Total sum before final multiplication: %f\n", sum);
     sum *= step_size / 3.;
+    printf("Total sum after final multiplication: %f\n", sum);
     if (sum < 0) {
         printf("Warning: Computed path length is negative. Setting to 1e21.\n");
         fflush(stdout);
         FindRoot_set_path_length(finder, 1e21);
         return;
     }
+    printf("Numerical path length: %f\n", sum);
     FindRoot_set_path_length(finder, sum);
     return;
 }
@@ -48,20 +58,24 @@ void find_path_length_analytic(FindRoot finder, LocalTrajectory traj){
     double s1  = LocalTrajectory_func_s(traj, l2); // l2 = solution for l
     double x1  = LocalTrajectory_func_x(traj, l2);
     double path_length = sqrt((s1 - s0)*(s1 - s0) + (x1 - x0)*(x1 - x0));
+    printf("Analytical path length: %f\n", path_length);
     FindRoot_set_path_length(finder, path_length);
     return;
     // only for drift for now
 }
 /*gpufun*/
-void FindRoot_find_path_length(FindRoot finder, LocalSegment seg, LocalTrajectory traj){
-    if (LocalSegment_typeid(seg) == LocalSegment_BezierSegment_t){
-        return simpson(finder, traj, XC_GEOM_SIMPSON_SUBINTERVALS);
-    }
+void FindRoot_find_path_length(FindRoot finder, LocalTrajectory traj){
+    //if (LocalSegment_typeid(seg) == LocalSegment_BezierSegment_t){
+    //    return simpson(finder, traj, XC_GEOM_SIMPSON_SUBINTERVALS);
+    //}
     // TODO: Check with Frederik. I assume we always use the first solution as the second solution might not
     // even be relevant (say out - in again, then we actually never go in again. IN-OUT -> we change to mcs before out)
     if (LocalTrajectory_typeid(traj) == LocalTrajectory_DriftTrajectory_t){
-        return find_path_length_analytic(finder, traj);
+        printf("Using analytical path length method for drift trajectory.\n");
+        //return find_path_length_analytic(finder, traj);
+        return simpson(finder, traj, XC_GEOM_SIMPSON_SUBINTERVALS);
     } else {
+        printf("Using numerical path length method.\n");
         return simpson(finder, traj, XC_GEOM_SIMPSON_SUBINTERVALS);
     }
 }
