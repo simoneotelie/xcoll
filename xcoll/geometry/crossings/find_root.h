@@ -65,6 +65,16 @@ void FindRoot_newton(FindRoot finder, LocalSegment seg, LocalTrajectory traj, do
             FindRoot_set_converged(finder, num, converged);
             continue;
         }
+        corr0 = J_inv[0][0]*TS[0] + J_inv[0][1]*TS[1]; // delta for l
+        corr1 = J_inv[1][0]*TS[0] + J_inv[1][1]*TS[1]; // delta for t
+        new_t = guess_t - corr1;
+        new_l = guess_l - corr0;
+        // For convergence study -----
+        FindRoot_set_delta_t(finder, i, fabs(new_t - guess_t));
+        FindRoot_set_delta_l(finder, i, fabs(new_l - guess_l));
+        FindRoot_set_res_t(finder, i, fabs(TS[0]));
+        FindRoot_set_res_l(finder, i, fabs(TS[1]));
+        // ---------------------------
         // Residual convergence checks
         if (fabs(TS[0]) < XC_GEOM_ROOT_NEWTON_EPSILON && fabs(TS[1]) < XC_GEOM_ROOT_NEWTON_EPSILON) {
             FindRoot_set_solution_t(finder, num, guess_t);
@@ -72,10 +82,6 @@ void FindRoot_newton(FindRoot finder, LocalSegment seg, LocalTrajectory traj, do
             FindRoot_set_converged(finder, num, converged);
             return;
         }
-        corr0 = J_inv[0][0]*TS[0] + J_inv[0][1]*TS[1]; // delta for l
-        corr1 = J_inv[1][0]*TS[0] + J_inv[1][1]*TS[1]; // delta for t
-        new_t = guess_t - corr1;
-        new_l = guess_l - corr0;
         // Check for parameter update convergence
         if ((fabs(new_t -  guess_t) < XC_GEOM_ROOT_NEWTON_EPSILON) && (fabs(new_l - guess_l) < XC_GEOM_ROOT_NEWTON_EPSILON)){
             FindRoot_set_solution_t(finder, num, guess_t);
@@ -95,7 +101,7 @@ void FindRoot_newton(FindRoot finder, LocalSegment seg, LocalTrajectory traj, do
 }
 // TODO: make this more clean pls
 int8_t XC_SLICING_NUM_STEPS = 4;
-int8_t XC_SLICING_MAX_NEST_LEVEL = 8;
+int8_t XC_SLICING_MAX_NEST_LEVEL = 6;
 
 /*gpufun*/
 void slice_before_newton(FindRoot finder, LocalSegment seg, LocalTrajectory traj,
@@ -177,14 +183,11 @@ void find_crossing_approximate(FindRoot finder, LocalSegment seg, LocalTrajector
 void FindRoot_find_crossing(FindRoot finder, LocalSegment seg, LocalTrajectory traj){ // TODO: Temporary arrays
 // this will act as the crossing main function - C magic
 // First we check for the analytical solutions by checking what trajectory we have
-    printf("Finding crossing...\n");
-    fflush(stdout);
     int8_t num_solutions = 0;
     double solution_t[3];
     double solution_l[3];
     switch (LocalTrajectory_typeid(traj)){
         case LocalTrajectory_DriftTrajectory_t:
-            printf("Using analytical crossing method for drift trajectory.\n");
             double xp  = DriftTrajectory_get_tan_t0((DriftTrajectory) LocalTrajectory_member(traj));
             double s0  = DriftTrajectory_get_s0((DriftTrajectory) LocalTrajectory_member(traj));
             double x0  = DriftTrajectory_get_x0((DriftTrajectory) LocalTrajectory_member(traj));
@@ -228,7 +231,6 @@ void FindRoot_find_crossing(FindRoot finder, LocalSegment seg, LocalTrajectory t
             }
             break;
         default:
-            printf("Using approximate crossing method.\n");
             return find_crossing_approximate(finder, seg, traj);
     }
 }
