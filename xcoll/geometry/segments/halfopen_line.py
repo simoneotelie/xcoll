@@ -30,7 +30,7 @@ class HalfOpenLineSegment(xo.Struct):
     def __init__(self, *args, **kwargs):
         #if '_buffer' in kwargs: Needed in order to test kernels in python.
         #    super().__init__(*args, **kwargs)
-            return
+        #   return
         if not ('theta1' in kwargs or 'sin_t1' in kwargs or 'cos_t1' in kwargs):
             raise ValueError("At least one of 'theta1', 'sin_t1', or 'cos_t1' must be provided!")
         if 'theta1' in kwargs:
